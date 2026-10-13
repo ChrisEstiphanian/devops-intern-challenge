@@ -7,15 +7,23 @@ services:
       - "8080:8080"
     environment:
       - PORT=8080
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
 
   proxy:
     build:
       context: ./proxy
     # Published for local debugging: curl http://localhost:8081/nginx-health
+    # Bonus: nginx now listens on 8080 inside the container (non-root,
+    # unprivileged port) instead of 80 -- host-side port 8081 unchanged.
     ports:
-      - "8081:80"
+      - "8081:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   test-runner:
     build:
@@ -23,4 +31,4 @@ services:
     depends_on:
       - proxy
     environment:
-      - PROXY_URL=http://proxy:80
+      - PROXY_URL=http://proxy:8080
